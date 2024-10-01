@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::{File, OpenOptions}, path::{Path, PathBuf}};
+use std::{collections::HashMap, fs::{File, OpenOptions}, path::Path};
 use serde::{Deserialize, Serialize};
 use super::schema::{Row, Table};
 use std::io::{Read, Write};

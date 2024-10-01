@@ -1,9 +1,6 @@
 use db::{executor::ExecutionEngine, parser::Parser, query::QueryPlanner, schema::Row, storage_engine::FileSystem};
 
-
-
 mod db;
-
 
 fn main() {
     let mut filesystem = FileSystem::new("database.db");
