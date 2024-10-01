@@ -7,21 +7,21 @@ mod db;
 
 fn main() {
     let mut filesystem = FileSystem::new("database.db");
-    // filesystem.create_table("users", vec!["id".to_string(), "name".to_string(), "email".to_string()]);
-    // filesystem.insert_row("users", Row{
-    //     data: vec![
-    //         ("id".to_string(), "1".to_string()),
-    //         ("name".to_string(), "anthony etienne".to_string()),
-    //         ("email".to_string(), "anthony.etienne@gmail.com".to_string()),
-    //     ].into_iter().collect(),
-    // });
-    // filesystem.insert_row("users", Row{
-    //     data: vec![
-    //         ("id".to_string(), "2".to_string()),
-    //         ("name".to_string(), "etienne anthony".to_string()),
-    //         ("email".to_string(), "etienne.anthony@gmail.com".to_string()),
-    //     ].into_iter().collect(),
-    // });
+    filesystem.create_table("users", vec!["id".to_string(), "name".to_string(), "email".to_string()]);
+    filesystem.insert_row("users", Row{
+        data: vec![
+            ("id".to_string(), "1".to_string()),
+            ("name".to_string(), "anthony etienne".to_string()),
+            ("email".to_string(), "anthony.etienne@gmail.com".to_string()),
+        ].into_iter().collect(),
+    });
+    filesystem.insert_row("users", Row{
+        data: vec![
+            ("id".to_string(), "2".to_string()),
+            ("name".to_string(), "etienne anthony".to_string()),
+            ("email".to_string(), "etienne.anthony@gmail.com".to_string()),
+        ].into_iter().collect(),
+    });
 
     let input = "SELECT * FROM users";
     let ast = Parser::parse(input).unwrap();
