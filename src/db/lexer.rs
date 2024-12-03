@@ -67,3 +67,75 @@ impl<'a> Lexer<'a> {
         }
     }
 }
+
+
+pub struct Tokenizer;
+
+impl Tokenizer {
+    pub fn tokenize(input: &str) -> Vec<Token> {
+        let mut tokens = Vec::new();
+        let mut chars = input.chars().peekable();
+
+        while let Some(&ch) = chars.peek() {
+            match ch {
+                // Skip whitespace
+                ' ' | '\t' | '\n' => {
+                    chars.next(); // Consume the character
+                    tokens.push(Token::Whitespace);
+                }
+                // Handle keywords and identifiers
+                'A'..='Z' | 'a'..='z' => {
+                    let mut word = String::new();
+                    while let Some(&c) = chars.peek() {
+                        if c.is_alphanumeric() {
+                            word.push(c);
+                            chars.next(); // Consume the character
+                        } else {
+                            break;
+                        }
+                    }
+                    // Check if it's a keyword
+                    let token = match word.to_uppercase().as_str() {
+                        "SELECT" | "FROM" | "WHERE" => Token::Keyword(word),
+                        _ => Token::Identifier(word),
+                    };
+                    tokens.push(token);
+                }
+                // Handle numeric literals
+                '0'..='9' => {
+                    let mut number = String::new();
+                    while let Some(&c) = chars.peek() {
+                        if c.is_numeric() {
+                            number.push(c);
+                            chars.next(); // Consume the character
+                        } else {
+                            break;
+                        }
+                    }
+                    tokens.push(Token::Literal(number));
+                }
+                // Handle symbols
+                ',' => {
+                    chars.next();
+                    tokens.push(Token::Comma);
+                }
+                '(' => {
+                    chars.next();
+                    tokens.push(Token::LeftParenthesis);
+                }
+                ')' => {
+                    chars.next();
+                    tokens.push(Token::RightParenthesis);
+                }
+                _ => {
+                    // Handle unexpected characters
+                    chars.next();
+                    tokens.push(Token::Operator(ch));
+                }
+            }
+        }
+
+        tokens.push(Token::Eof); // End of file token
+        tokens
+    }
+}

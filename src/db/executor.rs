@@ -14,7 +14,7 @@ impl ExecutionEngine {
     }
 
     pub fn execute(&self, query_plan: &QueryPlan) -> Result<Vec<Row>, ExecutionError> {
-        let table = self.storage_engine.tables.get(&query_plan.table.0).ok_or(ExecutionError::TableNotFound(query_plan.table.0.clone()))?;
+        let table = self.storage_engine.tables.get(&query_plan.table.0).ok_or(ExecutionError::TableNotFound)?;
         println!("rows {:?} and projection: {:?}", table.rows, &query_plan.projection);
         let mut result = Vec::new();
         for row in table.rows.values() {
@@ -31,5 +31,5 @@ impl ExecutionEngine {
 
 #[derive(Debug)]
 pub enum ExecutionError {
-    TableNotFound(String),
+    TableNotFound,
 }
