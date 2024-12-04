@@ -1,8 +1,13 @@
-use std::{collections::HashMap, fs::{File, OpenOptions}, path::Path};
-use serde::{Deserialize, Serialize};
+use super::executor::ExecutionError;
+use super::query::Identifier;
 use super::schema::{Row, Table};
-use std::io::{Read, Write};
-
+use serde::{Deserialize, Serialize};
+use std::io::{Error, ErrorKind, Read, Write};
+use std::{
+    collections::HashMap,
+    fs::{File, OpenOptions},
+    path::Path,
+};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct StorageEngine {
@@ -38,7 +43,11 @@ impl StorageEngine {
         if let Some(table) = self.tables.get_mut(table_name) {
             if let Some(pk) = &table.primary_key {
                 if let Some(new_pk_value) = updates.get(pk) {
-                    if table.rows.values().any(|r| r.data.get(pk) == Some(new_pk_value)) {
+                    if table
+                        .rows
+                        .values()
+                        .any(|r| r.data.get(pk) == Some(new_pk_value))
+                    {
                         return Err(format!(
                             "Duplicate value '{}' for primary key '{}'",
                             new_pk_value, pk
@@ -46,7 +55,7 @@ impl StorageEngine {
                     }
                 }
             }
-    
+
             for row in table.rows.values_mut() {
                 if condition(row) {
                     for (column, value) in &updates {
@@ -82,17 +91,18 @@ impl StorageEngine {
             // Validate uniqueness for the primary key
             if let Some(pk) = &table.primary_key {
                 if let Some(pk_value) = row.data.get(pk) {
-                    if table.rows.values().any(|r| r.data.get(pk) == Some(pk_value)) {
+                    if table
+                        .rows
+                        .values()
+                        .any(|r| r.data.get(pk) == Some(pk_value))
+                    {
                         return Err(format!(
                             "Duplicate value '{}' for primary key '{}'",
                             pk_value, pk
                         ));
                     }
                 } else {
-                    return Err(format!(
-                        "Missing value for primary key '{}'",
-                        pk
-                    ));
+                    return Err(format!("Missing value for primary key '{}'", pk));
                 }
             }
 
@@ -104,13 +114,11 @@ impl StorageEngine {
         }
     }
 
-
     pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<(), std::io::Error> {
         buffer.clear();
         buffer.extend(bincode::serialize(self).unwrap());
         Ok(())
     }
-
 
     pub fn deserialize(buffer: &[u8]) -> Result<Self, std::io::Error> {
         Ok(bincode::deserialize(buffer).unwrap())
@@ -135,20 +143,16 @@ impl FileSystem {
         }
     }
 
-    pub fn create_table(
-        &mut self,
-        name: &str,
-        columns: Vec<String>,
-        primary_key: Option<&str>,
-    ) {
+    pub fn create_table(&mut self, name: &str, columns: Vec<String>, primary_key: Option<&str>) {
         self.storage_engine.create_table(name, columns, primary_key);
         self.save_to_file().unwrap();
     }
 
-    pub fn insert_row(&mut self, table_name: &str, row: Row) -> Result<(), String> {
-        let result = self.storage_engine.insert_row(table_name, row);
-        self.save_to_file().unwrap();
-        result
+    pub fn insert_row(&mut self, table_name: &str, row: Row) -> Result<(), std::io::Error> {
+        match self.storage_engine.insert_row(table_name, row) {
+            Ok(_) => return self.save_to_file(),
+            Err(e) => return Err(Error::new(ErrorKind::Interrupted, e)),
+        };
     }
 
     fn save_to_file(&self) -> Result<(), std::io::Error> {
@@ -182,13 +186,46 @@ impl FileSystem {
         self.save_to_file().unwrap();
     }
 
+    pub fn fetch_rows(
+        &self,
+        table: &Table,
+        projection: Vec<Identifier>,
+    ) -> Result<Vec<Row>, String> {
+        let mut result = Vec::new();
+        for row in table.rows.values() {
+            let mut row_data = HashMap::new();
+            for column in &projection {
+                row_data.insert(
+                    column.0.clone(),
+                    row.data.get(&column.0).cloned().unwrap_or_default(),
+                );
+            }
+            result.push(Row { data: row_data });
+        }
+        Ok(result)
+    }
+
     /// Update rows and persist the changes
-    pub fn update_rows<F>(&mut self, table_name: &str, updates: HashMap<String, String>, condition: F) -> Result<(), String>
+    pub fn update_rows<F>(
+        &mut self,
+        table_name: &str,
+        updates: HashMap<String, String>,
+        condition: F,
+    ) -> Result<Vec<Row>, String>
     where
         F: Fn(&Row) -> bool,
     {
-        let result = self.storage_engine.update_rows(table_name, updates, condition);
-        self.save_to_file().unwrap();
-        result
+        match self
+            .storage_engine
+            .update_rows(table_name, updates.clone(), condition)
+        {
+            Ok(()) => {
+                self.save_to_file().unwrap();
+                let mut res: Vec<Row> = vec![];
+                res.push(Row { data: updates });
+                return Ok(res);
+            }
+            Err(e) => return Err(e.to_string()),
+        };
     }
 }
